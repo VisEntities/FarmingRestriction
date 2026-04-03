@@ -9,8 +9,8 @@ using System.Collections.Generic;
 
 namespace Oxide.Plugins
 {
-    [Info("Farming Restriction", "VisEntities", "1.0.0")]
-    [Description("Blocks all farming actions while building blocked, including trees, ore, and planters.")]
+    [Info("Farming Restriction", "VisEntities", "1.1.0")]
+    [Description("Blocks all farming actions while building blocked, including trees, ore, planters, and plant cloning.")]
     public class FarmingRestriction : RustPlugin
     {
         #region Fields
@@ -38,6 +38,9 @@ namespace Oxide.Plugins
 
             [JsonProperty("Block Planter Harvest When Building Blocked")]
             public bool BlockPlantersWhenBuildingBlocked { get; set; }
+
+            [JsonProperty("Block Plant Cloning When Building Blocked")]
+            public bool BlockPlantCloningWhenBuildingBlocked { get; set; }
         }
 
         protected override void LoadConfig()
@@ -70,6 +73,9 @@ namespace Oxide.Plugins
             if (string.Compare(_config.Version, "1.0.0") < 0)
                 _config = defaultConfig;
 
+            if (string.Compare(_config.Version, "1.1.0") < 0)
+                _config.BlockPlantCloningWhenBuildingBlocked = defaultConfig.BlockPlantCloningWhenBuildingBlocked;
+
             PrintWarning("Config update complete! Updated from version " + _config.Version + " to " + Version.ToString());
             _config.Version = Version.ToString();
         }
@@ -82,7 +88,8 @@ namespace Oxide.Plugins
                 BlockTreeFarmingWhenBuildingBlocked = true,
                 BlockOreNodesWhenBuildingBlocked = true,
                 BlockCollectiblesWhenBuildingBlocked = true,
-                BlockPlantersWhenBuildingBlocked = true
+                BlockPlantersWhenBuildingBlocked = true,
+                BlockPlantCloningWhenBuildingBlocked = true
             };
         }
 
@@ -159,6 +166,21 @@ namespace Oxide.Plugins
             return true;
         }
 
+        private object CanTakeCutting(BasePlayer player, GrowableEntity instance)
+        {
+            if (player == null)
+                return null;
+
+            if (!_config.BlockPlantCloningWhenBuildingBlocked)
+                return null;
+
+            if (!ShouldBlock(player))
+                return null;
+
+            ShowToast(player, Lang.Blocked_CloningDenied, GameTip.Styles.Red_Normal);
+            return true;
+        }
+
         #endregion Oxide Hooks
 
         #region Helper Functions
@@ -206,13 +228,15 @@ namespace Oxide.Plugins
         private class Lang
         {
             public const string Blocked_FarmingDenied = "Blocked.FarmingDenied";
+            public const string Blocked_CloningDenied = "Blocked.CloningDenied";
         }
 
         protected override void LoadDefaultMessages()
         {
             lang.RegisterMessages(new Dictionary<string, string>
             {
-                [Lang.Blocked_FarmingDenied] = "You cannot farm here (building blocked)."
+                [Lang.Blocked_FarmingDenied] = "You cannot farm here (building blocked).",
+                [Lang.Blocked_CloningDenied] = "You cannot clone plants here (building blocked)."
 
             }, this, "en");
         }
